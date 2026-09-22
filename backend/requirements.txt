@@ -5,4 +5,4 @@ pydantic-settings==2.10.1
 python-multipart==0.0.20
 firebase-admin==7.1.0
 razorpay==2.0.0
-psycopg[binary]==3.2.9
+psycopg[binary]==3.2.13
