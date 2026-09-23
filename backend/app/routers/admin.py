@@ -4,13 +4,34 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..auth import admin_user
 from ..db import get_db
-from ..models import User, Course, CourseService, CourseBenefit, CurriculumItem, Discount, Order, Enrollment, Review
+from ..models import User, Course, CourseService, CourseBenefit, CurriculumItem, Discount, Order, Enrollment, CourseProgress, Review
 from ..schemas import CourseIn, DiscountIn
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 def course_out(c):
-    return {"id": c.id, "title": c.title, "slug": c.slug, "status": c.status, "original_price": float(c.original_price), "selling_price": float(c.selling_price), "whatsapp_enabled": c.whatsapp_enabled, "whatsapp_configured": bool(c.whatsapp_invite_link), "services": len(c.services)}
+    return {
+        "id": c.id,
+        "title": c.title,
+        "slug": c.slug,
+        "image": c.image,
+        "short_description": c.short_description,
+        "description": c.description,
+        "category": c.category,
+        "difficulty": c.difficulty,
+        "duration": c.duration,
+        "sessions": c.sessions,
+        "instructor": c.instructor,
+        "original_price": float(c.original_price),
+        "selling_price": float(c.selling_price),
+        "status": c.status,
+        "whatsapp_enabled": c.whatsapp_enabled,
+        "whatsapp_invite_link": c.whatsapp_invite_link,
+        "whatsapp_configured": bool(c.whatsapp_invite_link),
+        "services": [{"name": x.name, "description": x.description} for x in c.services],
+        "benefits": [x.text for x in c.benefits],
+        "curriculum": [{"title": x.title, "duration": x.duration, "position": x.position} for x in c.curriculum],
+    }
 
 @router.get("/summary")
 def summary(admin=Depends(admin_user), db: Session=Depends(get_db)):
@@ -53,9 +74,36 @@ def update_course(course_id: int, payload: CourseIn, admin=Depends(admin_user), 
 
 @router.delete("/courses/{course_id}")
 def delete_course(course_id: int, admin=Depends(admin_user), db: Session=Depends(get_db)):
-    c = db.query(Course).filter(Course.id==course_id).first()
-    if not c: raise HTTPException(404, "Course not found")
-    db.delete(c); db.commit(); return {"message":"Course deleted"}
+    c = db.query(Course).filter(Course.id == course_id).first()
+    if not c:
+        raise HTTPException(404, "Course not found")
+
+    purchase_count = db.query(Order).filter(
+        Order.course_id == course_id,
+        Order.status == "paid",
+    ).count()
+
+    # Keep purchase history intact. Once a course has paid orders, it cannot
+    # be physically deleted because orders reference the course. Archive it
+    # instead so it disappears from the public catalogue but remains visible
+    # in admin purchase history.
+    if purchase_count:
+        c.status = "archived"
+        db.commit()
+        return {
+            "message": "Course archived because it has completed purchases",
+            "deleted": False,
+            "archived": True,
+        }
+
+    # No paid purchases: clean up dependent records before deleting.
+    db.query(Review).filter(Review.course_id == course_id).delete(synchronize_session=False)
+    db.query(CourseProgress).filter(CourseProgress.course_id == course_id).delete(synchronize_session=False)
+    db.query(Enrollment).filter(Enrollment.course_id == course_id).delete(synchronize_session=False)
+    db.query(Order).filter(Order.course_id == course_id).delete(synchronize_session=False)
+    db.delete(c)
+    db.commit()
+    return {"message": "Course deleted", "deleted": True, "archived": False}
 
 @router.post("/courses/{course_id}/discount")
 def add_discount(course_id:int, payload:DiscountIn, admin=Depends(admin_user), db:Session=Depends(get_db)):
@@ -65,8 +113,57 @@ def add_discount(course_id:int, payload:DiscountIn, admin=Depends(admin_user), d
 
 @router.get("/orders")
 def orders(admin=Depends(admin_user), db:Session=Depends(get_db)):
-    rows=db.query(Order).order_by(Order.created_at.desc()).limit(100).all()
-    return [{"id":o.id,"user_id":o.user_id,"course_id":o.course_id,"amount":float(o.final_amount),"discount":float(o.discount_amount),"status":o.status,"order_id":o.razorpay_order_id,"payment_id":o.razorpay_payment_id,"date":o.created_at} for o in rows]
+    rows = (
+        db.query(Order, User, Course)
+        .join(User, User.id == Order.user_id)
+        .outerjoin(Course, Course.id == Order.course_id)
+        .order_by(Order.created_at.desc())
+        .limit(100)
+        .all()
+    )
+    return [
+        {
+            "id": o.id,
+            "user_id": o.user_id,
+            "member_name": u.name or "Member",
+            "member_email": u.email,
+            "course_id": o.course_id,
+            "course_title": c.title if c else "Deleted course",
+            "amount": float(o.final_amount),
+            "original_amount": float(o.original_amount),
+            "discount": float(o.discount_amount),
+            "status": o.status,
+            "order_id": o.razorpay_order_id,
+            "payment_id": o.razorpay_payment_id,
+            "date": o.created_at,
+        }
+        for o, u, c in rows
+    ]
+
+@router.get("/courses/{course_id}/buyers")
+def course_buyers(course_id: int, admin=Depends(admin_user), db: Session = Depends(get_db)):
+    if not db.query(Course).filter(Course.id == course_id).first():
+        raise HTTPException(404, "Course not found")
+
+    rows = (
+        db.query(Order, User)
+        .join(User, User.id == Order.user_id)
+        .filter(Order.course_id == course_id, Order.status == "paid")
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "user_id": u.id,
+            "name": u.name or "Member",
+            "email": u.email,
+            "amount": float(o.final_amount),
+            "status": o.status,
+            "payment_id": o.razorpay_payment_id,
+            "date": o.created_at,
+        }
+        for o, u in rows
+    ]
 
 @router.get("/users")
 def users(admin=Depends(admin_user), db:Session=Depends(get_db)):

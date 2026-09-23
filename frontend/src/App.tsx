@@ -1189,7 +1189,7 @@ function Sidebar({
         )}
 
         {isAdmin&&(
-          <Link to="/admin#courses">
+          <Link to="/admin#manage-courses">
             <ShoppingBag size={17}/>
             <span>Manage courses</span>
           </Link>
@@ -1748,10 +1748,15 @@ function Admin(){
   const [courses,setCourses]=useState<any[]>([]);
   const [orders,setOrders]=useState<any[]>([]);
   const [reviews,setReviews]=useState<any[]>([]);
+  const [editCourse,setEditCourse]=useState<any|null>(null);
+  const [buyers,setBuyers]=useState<Record<number,any[]>>({});
+  const [loadingBuyers,setLoadingBuyers]=useState<number|null>(null);
+  const [manageOnly,setManageOnly]=useState(window.location.hash==="#manage-courses");
 
-  const [form,setForm]=useState<any>({
+  const emptyForm={
     title:"",
     slug:"",
+    image:"",
     short_description:"",
     description:"",
     category:"Yoga",
@@ -1767,7 +1772,15 @@ function Admin(){
     services:[],
     benefits:[],
     curriculum:[]
-  });
+  };
+
+  const [form,setForm]=useState<any>(emptyForm);
+
+  useEffect(()=>{
+    const onHash=()=>setManageOnly(window.location.hash==="#manage-courses");
+    window.addEventListener("hashchange",onHash);
+    return ()=>window.removeEventListener("hashchange",onHash);
+  },[]);
 
   const load=()=>
     Promise.all([
@@ -1799,7 +1812,6 @@ function Admin(){
           nav("/dashboard");
           return;
         }
-
         setMe(m);
         return load();
       })
@@ -1811,49 +1823,103 @@ function Admin(){
 
   async function create(e:any){
     e.preventDefault();
-
     try{
-      await api(
-        "/api/admin/courses",
-        {
-          method:"POST",
-          body:JSON.stringify({
-            ...form,
-
-            services:
-              form.services
-                .filter((x:string)=>x)
-                .map((name:string)=>({
-                  name
-                })),
-
-            benefits:
-              form.benefits
-                .filter(Boolean),
-
-            curriculum:
-              form.curriculum
-                .filter(Boolean)
-                .map(
-                  (title:string,i:number)=>({
-                    title,
-                    position:i+1,
-                    duration:"20 min"
-                  })
-                )
-          })
-        }
-      );
-
-      setForm({
-        ...form,
-        title:"",
-        slug:""
+      await api("/api/admin/courses",{
+        method:"POST",
+        body:JSON.stringify({
+          ...form,
+          services:form.services.filter(Boolean).map((name:string)=>({name})),
+          benefits:form.benefits.filter(Boolean),
+          curriculum:form.curriculum.filter(Boolean).map((title:string,i:number)=>({
+            title,
+            position:i+1,
+            duration:"20 min"
+          }))
+        })
       });
-
-      load();
+      setForm({...emptyForm});
+      await load();
+      alert("Course created successfully.");
     }catch(x:any){
       alert(x.message);
+    }
+  }
+
+  function startEdit(c:any){
+    setEditCourse({
+      ...c,
+      services:(c.services||[]).map((x:any)=>typeof x==="string"?x:x.name),
+      benefits:[...(c.benefits||[])],
+      curriculum:(c.curriculum||[]).map((x:any)=>typeof x==="string"?x:x.title)
+    });
+  }
+
+  async function saveEdit(e:any){
+    e.preventDefault();
+    if(!editCourse) return;
+    try{
+      await api(`/api/admin/courses/${editCourse.id}`,{
+        method:"PUT",
+        body:JSON.stringify({
+          title:editCourse.title,
+          slug:editCourse.slug,
+          image:editCourse.image||null,
+          short_description:editCourse.short_description||"",
+          description:editCourse.description||"",
+          category:editCourse.category||"Yoga",
+          difficulty:editCourse.difficulty||"Beginner",
+          duration:editCourse.duration||"30 days",
+          sessions:Number(editCourse.sessions)||0,
+          instructor:editCourse.instructor||"",
+          original_price:Number(editCourse.original_price)||0,
+          selling_price:Number(editCourse.selling_price)||0,
+          status:editCourse.status||"draft",
+          whatsapp_invite_link:editCourse.whatsapp_invite_link||null,
+          whatsapp_enabled:Boolean(editCourse.whatsapp_enabled),
+          services:(editCourse.services||[]).filter(Boolean).map((name:string)=>({name})),
+          benefits:(editCourse.benefits||[]).filter(Boolean),
+          curriculum:(editCourse.curriculum||[]).filter(Boolean).map((title:string,i:number)=>({
+            title,
+            position:i+1,
+            duration:"20 min"
+          }))
+        })
+      });
+      setEditCourse(null);
+      await load();
+      alert("Course updated successfully.");
+    }catch(x:any){
+      alert(x.message);
+    }
+  }
+
+  async function removeCourse(c:any){
+    const ok=window.confirm(
+      `Delete "${c.title}"?\n\nIf this course already has paid purchases, it will be archived instead so buyer/payment history is preserved.`
+    );
+    if(!ok) return;
+    try{
+      const result=await api(`/api/admin/courses/${c.id}`,{method:"DELETE"});
+      await load();
+      alert(result.message);
+    }catch(x:any){
+      alert(x.message);
+    }
+  }
+
+  async function loadBuyers(courseId:number){
+    if(buyers[courseId]){
+      setBuyers(prev=>({...prev,[courseId]:[]}));
+      return;
+    }
+    setLoadingBuyers(courseId);
+    try{
+      const data=await api(`/api/admin/courses/${courseId}/buyers`);
+      setBuyers(prev=>({...prev,[courseId]:data}));
+    }catch(x:any){
+      alert(x.message);
+    }finally{
+      setLoadingBuyers(null);
     }
   }
 
@@ -1861,346 +1927,255 @@ function Admin(){
     return (
       <>
         <Nav/>
-
-        <div className="loading">
-          Verifying admin access…
-        </div>
+        <div className="loading">Verifying admin access…</div>
       </>
     );
   }
 
   return (
-    <PortalLayout
-      role="admin"
-      name={me.name}
-      email={me.email}
-    >
+    <PortalLayout role="admin" name={me.name} email={me.email}>
       <div className="admin admin-portal">
-        <div className="portal-topbar">
-          <div>
-            <p className="eyebrow">
-              PRIVATE ADMIN CONSOLE
-            </p>
+        {manageOnly ? (
+          <section className="admin-manage-page" id="manage-courses">
+            <div className="portal-topbar admin-manage-heading">
+              <div>
+                <p className="eyebrow">COURSE MANAGEMENT</p>
+                <h1>Manage your courses.</h1>
+                <p>Only courses created in your admin console appear here. Edit pricing, settings, services and visibility, or remove a course.</p>
+              </div>
+              <Link className="btn primary" to="/admin">+ Add course</Link>
+            </div>
 
-            <h1>
-              Calm control center.
-            </h1>
+            <div className="admin-course-list">
+              {courses.length ? courses.map(c=>(
+                <article className="admin-course-card" key={c.id}>
+                  <div className="admin-course-card-main">
+                    {c.image ? <img src={c.image} alt="" className="admin-course-thumb"/> : <div className="admin-course-thumb admin-course-thumb-empty">ANANDA.</div>}
+                    <div className="admin-course-copy">
+                      <div className="admin-course-title-row">
+                        <h2>{c.title}</h2>
+                        <span className={`course-status ${c.status}`}>{c.status}</span>
+                      </div>
+                      <p>{c.short_description || "No short description added."}</p>
+                      <div className="admin-course-meta">
+                        <span>₹{c.selling_price.toLocaleString("en-IN")}</span>
+                        <span>Original ₹{c.original_price.toLocaleString("en-IN")}</span>
+                        <span>{c.duration}</span>
+                        <span>{c.services?.length||0} services</span>
+                      </div>
+                    </div>
+                  </div>
 
-            <p>
-              Only your Firebase-authorized admin identity
-              can access this workspace.
-            </p>
-          </div>
+                  <div className="admin-course-actions">
+                    <button className="btn secondary" onClick={()=>startEdit(c)}>Edit course</button>
+                    <button className="btn danger" onClick={()=>removeCourse(c)}>Delete</button>
+                    <button className="btn ghost" onClick={()=>loadBuyers(c.id)}>
+                      {loadingBuyers===c.id ? "Loading…" : buyers[c.id] ? "Hide buyers" : "View buyers"}
+                    </button>
+                  </div>
 
-          <div className="portal-secure">
-            <ShieldCheck size={17}/>
-            <span>
-              Admin verified
-            </span>
-          </div>
-        </div>
+                  {buyers[c.id] && (
+                    <div className="course-buyers">
+                      <div className="course-buyers-heading">
+                        <div>
+                          <strong>People who purchased this course</strong>
+                          <span>{buyers[c.id].length} buyer{buyers[c.id].length===1?"":"s"}</span>
+                        </div>
+                      </div>
+                      {buyers[c.id].length ? buyers[c.id].map((b:any)=>(
+                        <div className="buyer-row" key={b.user_id}>
+                          <div className="buyer-avatar">{(b.name||"M").charAt(0).toUpperCase()}</div>
+                          <div>
+                            <b>{b.name || "Member"}</b>
+                            <small>{b.email}</small>
+                          </div>
+                          <span>₹{Number(b.amount).toLocaleString("en-IN")} · {b.status}</span>
+                        </div>
+                      )) : <p className="muted">No paid purchases yet.</p>}
+                    </div>
+                  )}
+                </article>
+              )) : (
+                <div className="admin-panel empty-state">
+                  <h2>No courses created yet</h2>
+                  <p className="muted">Create your first course from the Add course page.</p>
+                  <Link className="btn primary" to="/admin">Add your first course</Link>
+                </div>
+              )}
+            </div>
 
-        <div className="admin-stats">
-          <div>
-            <span>Members</span>
-            <b>{summary.members}</b>
-          </div>
+            <div className="admin-panel admin-purchases-panel">
+              <div className="section-heading-row">
+                <div>
+                  <p className="eyebrow">PURCHASE HISTORY</p>
+                  <h2>All course buyers</h2>
+                </div>
+                <span className="muted">Paid orders only</span>
+              </div>
+              {orders.filter(o=>o.status==="paid").length ? (
+                <div className="purchase-table-wrap">
+                  <table className="purchase-table">
+                    <thead><tr><th>Member</th><th>Course</th><th>Amount</th><th>Payment</th><th>Date</th></tr></thead>
+                    <tbody>
+                      {orders.filter(o=>o.status==="paid").map(o=>(
+                        <tr key={o.id}>
+                          <td><b>{o.member_name}</b><small>{o.member_email}</small></td>
+                          <td>{o.course_title}</td>
+                          <td>₹{Number(o.amount).toLocaleString("en-IN")}</td>
+                          <td><span className="status-pill paid">Paid</span></td>
+                          <td>{new Date(o.date).toLocaleDateString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : <p className="muted">No purchases yet.</p>}
+            </div>
+          </section>
+        ) : (
+          <>
+            <div className="portal-topbar">
+              <div>
+                <p className="eyebrow">PRIVATE ADMIN CONSOLE</p>
+                <h1>Calm control center.</h1>
+                <p>Only your Firebase-authorized admin identity can access this workspace.</p>
+              </div>
+              <div className="portal-secure"><ShieldCheck size={17}/><span>Admin verified</span></div>
+            </div>
 
-          <div>
-            <span>Courses</span>
-            <b>{summary.courses}</b>
-          </div>
+            <div className="admin-stats">
+              <div><span>Members</span><b>{summary.members}</b></div>
+              <div><span>Courses</span><b>{summary.courses}</b></div>
+              <div><span>Revenue</span><b>₹{summary.revenue.toLocaleString("en-IN")}</b></div>
+              <div><span>Purchases</span><b>{summary.purchases}</b></div>
+              <div><span>Rating</span><b>{summary.average_rating.toFixed(1)}</b></div>
+            </div>
 
-          <div>
-            <span>Revenue</span>
-            <b>
-              ₹{summary.revenue.toLocaleString("en-IN")}
-            </b>
-          </div>
+            <section className="admin-grid">
+              <div className="admin-panel" id="courses">
+                <div className="section-heading-row">
+                  <div>
+                    <h2>Add course</h2>
+                    <p className="muted">Create a new course. Existing courses are managed from Manage courses.</p>
+                  </div>
+                  <Link className="btn secondary" to="/admin#manage-courses">Manage courses</Link>
+                </div>
 
-          <div>
-            <span>Purchases</span>
-            <b>{summary.purchases}</b>
-          </div>
+                <form onSubmit={create} className="admin-form">
+                  {["title","slug","short_description","description","instructor"].map(k=>(
+                    <input key={k} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} placeholder={k.replaceAll("_"," ")} required={k==="title"||k==="slug"}/>
+                  ))}
 
-          <div>
-            <span>Rating</span>
-            <b>
-              {summary.average_rating.toFixed(1)}
-            </b>
-          </div>
-        </div>
+                  <div className="two">
+                    <input type="number" value={form.original_price} onChange={e=>setForm({...form,original_price:Number(e.target.value)})} placeholder="Original price"/>
+                    <input type="number" value={form.selling_price} onChange={e=>setForm({...form,selling_price:Number(e.target.value)})} placeholder="Selling price"/>
+                  </div>
 
-        <section className="admin-grid">
-          <div
-            className="admin-panel"
-            id="courses"
-          >
-            <h2>
-              Add course
-            </h2>
+                  <div className="two">
+                    <input value={form.category} onChange={e=>setForm({...form,category:e.target.value})} placeholder="Category"/>
+                    <input value={form.difficulty} onChange={e=>setForm({...form,difficulty:e.target.value})} placeholder="Difficulty"/>
+                  </div>
 
-            <p className="muted">
-              Courses are created here. Nothing is pre-seeded.
-            </p>
+                  <div className="two">
+                    <input value={form.duration} onChange={e=>setForm({...form,duration:e.target.value})} placeholder="Duration"/>
+                    <input type="number" value={form.sessions} onChange={e=>setForm({...form,sessions:Number(e.target.value)})} placeholder="Sessions"/>
+                  </div>
 
-            <form
-              onSubmit={create}
-              className="admin-form"
-            >
-              {[
-                "title",
-                "slug",
-                "short_description",
-                "description",
-                "instructor"
-              ].map(k=>(
-                <input
-                  key={k}
-                  value={form[k]}
-                  onChange={e=>
-                    setForm({
-                      ...form,
-                      [k]:e.target.value
-                    })
-                  }
-                  placeholder={k.replaceAll("_"," ")}
-                  required={
-                    k==="title" ||
-                    k==="slug"
-                  }
-                />
-              ))}
+                  <input value={form.whatsapp_invite_link} onChange={e=>setForm({...form,whatsapp_invite_link:e.target.value})} placeholder="Private WhatsApp invite link"/>
+                  <label><input type="checkbox" checked={form.whatsapp_enabled} onChange={e=>setForm({...form,whatsapp_enabled:e.target.checked})}/> Enable WhatsApp access after purchase</label>
 
-              <div className="two">
-                <input
-                  type="number"
-                  value={form.original_price}
-                  onChange={e=>
-                    setForm({
-                      ...form,
-                      original_price:Number(e.target.value)
-                    })
-                  }
-                />
+                  <textarea placeholder="Services, one per line" value={form.services.join("\n")} onChange={e=>setForm({...form,services:e.target.value.split("\n")})}/>
+                  <textarea placeholder="Benefits, one per line" value={form.benefits.join("\n")} onChange={e=>setForm({...form,benefits:e.target.value.split("\n")})}/>
+                  <textarea placeholder="Curriculum lessons, one per line" value={form.curriculum.join("\n")} onChange={e=>setForm({...form,curriculum:e.target.value.split("\n")})}/>
 
-                <input
-                  type="number"
-                  value={form.selling_price}
-                  onChange={e=>
-                    setForm({
-                      ...form,
-                      selling_price:Number(e.target.value)
-                    })
-                  }
-                />
+                  <select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}>
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                  </select>
+
+                  <button className="btn primary">Create course</button>
+                </form>
               </div>
 
-              <input
-                value={form.whatsapp_invite_link}
-                onChange={e=>
-                  setForm({
-                    ...form,
-                    whatsapp_invite_link:e.target.value
-                  })
-                }
-                placeholder="Private WhatsApp invite link"
-              />
-
-              <label>
-                <input
-                  type="checkbox"
-                  checked={form.whatsapp_enabled}
-                  onChange={e=>
-                    setForm({
-                      ...form,
-                      whatsapp_enabled:e.target.checked
-                    })
-                  }
-                />
-
-                Enable WhatsApp access after purchase
-              </label>
-
-              <textarea
-                placeholder="Services, one per line"
-                value={form.services.join("\n")}
-                onChange={e=>
-                  setForm({
-                    ...form,
-                    services:e.target.value.split("\n")
-                  })
-                }
-              />
-
-              <textarea
-                placeholder="Benefits, one per line"
-                value={form.benefits.join("\n")}
-                onChange={e=>
-                  setForm({
-                    ...form,
-                    benefits:e.target.value.split("\n")
-                  })
-                }
-              />
-
-              <textarea
-                placeholder="Curriculum lessons, one per line"
-                value={form.curriculum.join("\n")}
-                onChange={e=>
-                  setForm({
-                    ...form,
-                    curriculum:e.target.value.split("\n")
-                  })
-                }
-              />
-
-              <select
-                value={form.status}
-                onChange={e=>
-                  setForm({
-                    ...form,
-                    status:e.target.value
-                  })
-                }
-              >
-                <option value="draft">
-                  Draft
-                </option>
-
-                <option value="published">
-                  Published
-                </option>
-              </select>
-
-              <button className="btn primary">
-                Create course
-              </button>
-            </form>
-          </div>
-
-          <div className="admin-panel">
-            <h2>
-              Courses
-            </h2>
-
-            {courses.length ? (
-              courses.map(c=>(
-                <div
-                  className="admin-row"
-                  key={c.id}
-                >
-                  <span>
-                    <b>
-                      {c.title}
-                    </b>
-
-                    <small>
-                      {c.status} · WhatsApp{" "}
-                      {c.whatsapp_enabled
-                        ? "on"
-                        : "off"}
-                    </small>
-                  </span>
-
-                  <b>
-                    ₹{c.selling_price.toLocaleString("en-IN")}
-                  </b>
+              <div className="admin-panel">
+                <div className="section-heading-row">
+                  <div><h2>Courses</h2><p className="muted">{courses.length} course{courses.length===1?"":"s"} created.</p></div>
+                  <Link className="btn ghost" to="/admin#manage-courses">Manage all</Link>
                 </div>
-              ))
-            ) : (
-              <p className="muted">
-                No courses yet. Add the first course above.
-              </p>
-            )}
-          </div>
+                {courses.length ? courses.slice(0,5).map(c=>(
+                  <div className="admin-row" key={c.id}>
+                    <span><b>{c.title}</b><small>{c.status} · {c.services?.length||0} services</small></span>
+                    <b>₹{c.selling_price.toLocaleString("en-IN")}</b>
+                  </div>
+                )) : <p className="muted">No courses yet.</p>}
+              </div>
 
-          <div
-            className="admin-panel"
-            id="orders"
-          >
-            <h2>
-              Recent purchases
-            </h2>
+              <div className="admin-panel" id="orders">
+                <h2>Recent purchases</h2>
+                {orders.slice(0,10).map(o=>(
+                  <div className="admin-row" key={o.id}>
+                    <span><b>{o.member_name || `User ${o.user_id}`}</b><small>{o.member_email} · {o.course_title}</small></span>
+                    <b>₹{o.amount.toLocaleString("en-IN")}</b>
+                  </div>
+                ))}
+                {!orders.length && <p className="muted">No purchases yet.</p>}
+              </div>
 
-            {orders
-              .slice(0,10)
-              .map(o=>(
-                <div
-                  className="admin-row"
-                  key={o.id}
-                >
-                  <span>
-                    <b>
-                      Order #{o.order_id||o.id}
-                    </b>
+              <div className="admin-panel">
+                <h2>Reviews</h2>
+                {reviews.slice(0,10).map(r=>(
+                  <div className="admin-row" key={r.id}>
+                    <span><b>{"★".repeat(r.rating)}</b><small>{r.comment}</small></span>
+                    <select value={r.status} onChange={async e=>{await api(`/api/admin/reviews/${r.id}`,{method:"PATCH",body:JSON.stringify({status:e.target.value})});load();}}>
+                      <option>pending</option><option>approved</option><option>hidden</option>
+                    </select>
+                  </div>
+                ))}
+                {!reviews.length && <p className="muted">No reviews yet.</p>}
+              </div>
+            </section>
+          </>
+        )}
 
-                    <small>
-                      {o.status} · User {o.user_id}
-                    </small>
-                  </span>
-
-                  <b>
-                    ₹{o.amount.toLocaleString("en-IN")}
-                  </b>
+        {editCourse && (
+          <div className="admin-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setEditCourse(null)}}>
+            <div className="admin-modal">
+              <div className="admin-modal-header">
+                <div><p className="eyebrow">EDIT COURSE</p><h2>{editCourse.title}</h2></div>
+                <button className="icon-button" onClick={()=>setEditCourse(null)} aria-label="Close"><X size={20}/></button>
+              </div>
+              <form onSubmit={saveEdit} className="admin-form">
+                <input value={editCourse.title} onChange={e=>setEditCourse({...editCourse,title:e.target.value})} placeholder="Course title" required/>
+                <input value={editCourse.slug} onChange={e=>setEditCourse({...editCourse,slug:e.target.value})} placeholder="Slug" required/>
+                <input value={editCourse.image||""} onChange={e=>setEditCourse({...editCourse,image:e.target.value})} placeholder="Course image URL"/>
+                <textarea value={editCourse.short_description||""} onChange={e=>setEditCourse({...editCourse,short_description:e.target.value})} placeholder="Short description"/>
+                <textarea value={editCourse.description||""} onChange={e=>setEditCourse({...editCourse,description:e.target.value})} placeholder="Full description"/>
+                <div className="two">
+                  <input value={editCourse.category||""} onChange={e=>setEditCourse({...editCourse,category:e.target.value})} placeholder="Category"/>
+                  <input value={editCourse.difficulty||""} onChange={e=>setEditCourse({...editCourse,difficulty:e.target.value})} placeholder="Difficulty"/>
                 </div>
-              ))}
-          </div>
-
-          <div className="admin-panel">
-            <h2>
-              Reviews
-            </h2>
-
-            {reviews
-              .slice(0,10)
-              .map(r=>(
-                <div
-                  className="admin-row"
-                  key={r.id}
-                >
-                  <span>
-                    <b>
-                      {"★".repeat(r.rating)}
-                    </b>
-
-                    <small>
-                      {r.comment}
-                    </small>
-                  </span>
-
-                  <select
-                    value={r.status}
-                    onChange={async e=>{
-                      await api(
-                        `/api/admin/reviews/${r.id}`,
-                        {
-                          method:"PATCH",
-                          body:JSON.stringify({
-                            status:e.target.value
-                          })
-                        }
-                      );
-
-                      load();
-                    }}
-                  >
-                    <option>
-                      pending
-                    </option>
-
-                    <option>
-                      approved
-                    </option>
-
-                    <option>
-                      hidden
-                    </option>
-                  </select>
+                <div className="two">
+                  <input value={editCourse.duration||""} onChange={e=>setEditCourse({...editCourse,duration:e.target.value})} placeholder="Duration"/>
+                  <input type="number" value={editCourse.sessions||0} onChange={e=>setEditCourse({...editCourse,sessions:Number(e.target.value)})} placeholder="Sessions"/>
                 </div>
-              ))}
+                <input value={editCourse.instructor||""} onChange={e=>setEditCourse({...editCourse,instructor:e.target.value})} placeholder="Instructor"/>
+                <div className="two">
+                  <input type="number" value={editCourse.original_price} onChange={e=>setEditCourse({...editCourse,original_price:Number(e.target.value)})} placeholder="Original price"/>
+                  <input type="number" value={editCourse.selling_price} onChange={e=>setEditCourse({...editCourse,selling_price:Number(e.target.value)})} placeholder="Selling price"/>
+                </div>
+                <select value={editCourse.status} onChange={e=>setEditCourse({...editCourse,status:e.target.value})}>
+                  <option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option>
+                </select>
+                <input value={editCourse.whatsapp_invite_link||""} onChange={e=>setEditCourse({...editCourse,whatsapp_invite_link:e.target.value})} placeholder="Private WhatsApp invite link"/>
+                <label><input type="checkbox" checked={Boolean(editCourse.whatsapp_enabled)} onChange={e=>setEditCourse({...editCourse,whatsapp_enabled:e.target.checked})}/> Enable WhatsApp access after purchase</label>
+                <textarea placeholder="Services, one per line" value={(editCourse.services||[]).join("\n")} onChange={e=>setEditCourse({...editCourse,services:e.target.value.split("\n")})}/>
+                <textarea placeholder="Benefits, one per line" value={(editCourse.benefits||[]).join("\n")} onChange={e=>setEditCourse({...editCourse,benefits:e.target.value.split("\n")})}/>
+                <textarea placeholder="Curriculum lessons, one per line" value={(editCourse.curriculum||[]).join("\n")} onChange={e=>setEditCourse({...editCourse,curriculum:e.target.value.split("\n")})}/>
+                <div className="modal-actions"><button type="button" className="btn secondary" onClick={()=>setEditCourse(null)}>Cancel</button><button className="btn primary">Save changes</button></div>
+              </form>
+            </div>
           </div>
-        </section>
+        )}
       </div>
     </PortalLayout>
   );
