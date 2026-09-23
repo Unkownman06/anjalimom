@@ -1110,15 +1110,17 @@ function Login(){
 function Sidebar({
   role,
   name,
-  email
+  email,
+  open,
+  onClose
 }:{
   role:"member"|"admin";
   name:string;
   email:string;
+  open:boolean;
+  onClose:()=>void;
 }){
   const {logout}=useAuth();
-
-  const [open,setOpen]=useState(false);
 
   const displayName=
     name ||
@@ -1127,121 +1129,129 @@ function Sidebar({
 
   const isAdmin=role==="admin";
 
+  const closeAfterNavigate=()=>onClose();
+
   return (
-    <aside
-      className={`portal-sidebar ${
-        open ? "open" : ""
-      }`}
-    >
-      <div className="portal-brand">
-        <Link
-          to="/"
-          className="brand"
-        >
-          <span className="brand-mark">
-            <Zap size={17}/>
-          </span>
-
-          <span>
-            ANANDA<span className="brand-dot">.</span>
-          </span>
-        </Link>
-
-        <button
-          className="portal-close"
-          onClick={()=>setOpen(false)}
-        >
-          <X size={19}/>
-        </button>
-      </div>
-
-      <div className="portal-role">
-        <span className="portal-role-dot"></span>
-
-        <div>
-          <b>
-            {isAdmin
-              ? "Admin workspace"
-              : "Member workspace"}
-          </b>
-
-          <small>
-            {isAdmin
-              ? "Private administration"
-              : "Your personal space"}
-          </small>
-        </div>
-      </div>
-
-      <nav className="portal-nav">
-        <Link
-          to={isAdmin?"/admin":"/dashboard"}
-          className="portal-nav-primary"
-        >
-          <LayoutDashboard size={17}/>
-          <span>{isAdmin ? "Overview" : "My space"}</span>
-        </Link>
-
-        {!isAdmin&&(
-          <Link to="/#courses">
-            <ShoppingBag size={17}/>
-            <span>Courses</span>
-          </Link>
-        )}
-
-        {isAdmin&&(
-          <Link to="/admin#courses">
-            <ShoppingBag size={17}/>
-            <span>Manage courses</span>
-          </Link>
-        )}
-
-        {isAdmin&&(
-          <Link to="/admin#orders">
-            <ShoppingBag size={17}/>
-            <span>Orders</span>
-          </Link>
-        )}
-      </nav>
-
-      <div className="portal-account">
-        <div className="portal-avatar">
-          {displayName
-            .charAt(0)
-            .toUpperCase()}
-        </div>
-
-        <div className="portal-account-copy">
-          <b>
-            {displayName}
-          </b>
-
-          <span>
-            {isAdmin
-              ? "Administrator"
-              : "Member"}
-          </span>
-        </div>
-
-        <button
-          className="portal-logout"
-          title="Log out"
-          onClick={async()=>{
-            await logout();
-            window.location.assign("/login");
-          }}
-        >
-          <LogOut size={17}/>
-        </button>
-      </div>
-
+    <>
       <button
-        className="portal-mobile-trigger"
-        onClick={()=>setOpen(!open)}
+        type="button"
+        className={`portal-overlay ${open ? "visible" : ""}`}
+        aria-label="Close navigation menu"
+        aria-hidden={!open}
+        onClick={onClose}
+      />
+
+      <aside
+        className={`portal-sidebar ${open ? "open" : ""}`}
+        aria-hidden={!open && typeof window !== "undefined" && window.innerWidth <= 800}
       >
-        <Menu size={20}/>
-      </button>
-    </aside>
+        <div className="portal-brand">
+          <Link
+            to="/"
+            className="brand"
+            onClick={closeAfterNavigate}
+          >
+            <span className="brand-mark">
+              <Zap size={17}/>
+            </span>
+
+            <span>
+              ANANDA<span className="brand-dot">.</span>
+            </span>
+          </Link>
+
+          <button
+            type="button"
+            className="portal-close"
+            aria-label="Close navigation menu"
+            onClick={onClose}
+          >
+            <X size={21}/>
+          </button>
+        </div>
+
+        <div className="portal-role">
+          <span className="portal-role-dot"></span>
+
+          <div>
+            <b>
+              {isAdmin
+                ? "Admin workspace"
+                : "Member workspace"}
+            </b>
+
+            <small>
+              {isAdmin
+                ? "Private administration"
+                : "Your personal space"}
+            </small>
+          </div>
+        </div>
+
+        <nav className="portal-nav">
+          <Link
+            to={isAdmin?"/admin":"/dashboard"}
+            className="portal-nav-primary"
+            onClick={closeAfterNavigate}
+          >
+            <LayoutDashboard size={17}/>
+            <span>{isAdmin ? "Overview" : "My space"}</span>
+          </Link>
+
+          {!isAdmin&&(
+            <Link to="/#courses" onClick={closeAfterNavigate}>
+              <ShoppingBag size={17}/>
+              <span>Courses</span>
+            </Link>
+          )}
+
+          {isAdmin&&(
+            <Link to="/admin#courses" onClick={closeAfterNavigate}>
+              <ShoppingBag size={17}/>
+              <span>Manage courses</span>
+            </Link>
+          )}
+
+          {isAdmin&&(
+            <Link to="/admin#orders" onClick={closeAfterNavigate}>
+              <ShoppingBag size={17}/>
+              <span>Orders</span>
+            </Link>
+          )}
+        </nav>
+
+        <div className="portal-account">
+          <div className="portal-avatar">
+            {displayName
+              .charAt(0)
+              .toUpperCase()}
+          </div>
+
+          <div className="portal-account-copy">
+            <b>
+              {displayName}
+            </b>
+
+            <span>
+              {isAdmin
+                ? "Administrator"
+                : "Member"}
+            </span>
+          </div>
+
+          <button
+            className="portal-logout"
+            title="Log out"
+            onClick={async()=>{
+              await logout();
+              window.location.assign("/login");
+            }}
+          >
+            <LogOut size={17}/>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -1256,6 +1266,26 @@ function PortalLayout({
   email:string;
   children:any;
 }){
+  const [menuOpen,setMenuOpen]=useState(false);
+
+  useEffect(()=>{
+    if(!menuOpen) return;
+
+    const previousOverflow=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+
+    const onKeyDown=(event:KeyboardEvent)=>{
+      if(event.key==="Escape") setMenuOpen(false);
+    };
+
+    window.addEventListener("keydown",onKeyDown);
+
+    return ()=>{
+      document.body.style.overflow=previousOverflow;
+      window.removeEventListener("keydown",onKeyDown);
+    };
+  },[menuOpen]);
+
   return (
     <div
       className={`portal-layout ${
@@ -1268,7 +1298,19 @@ function PortalLayout({
         role={role}
         name={name}
         email={email}
+        open={menuOpen}
+        onClose={()=>setMenuOpen(false)}
       />
+
+      <button
+        type="button"
+        className={`portal-mobile-trigger ${menuOpen ? "open" : ""}`}
+        aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+        aria-expanded={menuOpen}
+        onClick={()=>setMenuOpen(value=>!value)}
+      >
+        {menuOpen ? <X size={21}/> : <Menu size={21}/>} 
+      </button>
 
       <main className="portal-content">
         {children}

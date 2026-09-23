@@ -192,3 +192,196 @@ html{scroll-padding-top:24px}body{overflow-x:hidden}
 .admin-table th{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
 .admin-table td{font-size:.92rem}
 @media (max-width:800px){.admin-panel-heading{flex-direction:column}.admin-row-actions{margin-top:8px}.admin-panel-wide{grid-column:auto}}
+
+/* Mobile portal navigation fix */
+.portal-overlay{display:none}
+@media(max-width:800px){
+  body:has(.portal-sidebar.open){overflow:hidden}
+
+  .portal-sidebar{
+    width:min(86vw,360px) !important;
+    max-width:360px;
+    height:100dvh;
+    transform:translate3d(-105%,0,0) !important;
+    transition:transform .32s cubic-bezier(.22,1,.36,1) !important;
+    animation:none !important;
+    z-index:101;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding:20px 16px max(18px,env(safe-area-inset-bottom));
+    box-shadow:20px 0 60px rgba(38,58,50,.18);
+  }
+
+  .portal-sidebar.open{
+    transform:translate3d(0,0,0) !important;
+  }
+
+  .portal-overlay{
+    display:block;
+    position:fixed;
+    inset:0;
+    width:100%;
+    height:100%;
+    padding:0;
+    border:0;
+    background:rgba(25,38,33,.30);
+    backdrop-filter:blur(3px);
+    -webkit-backdrop-filter:blur(3px);
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:opacity .25s ease,visibility .25s ease;
+    z-index:100;
+  }
+
+  .portal-overlay.visible{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+  }
+
+  .portal-mobile-trigger{
+    display:grid !important;
+    place-items:center;
+    position:fixed;
+    left:16px;
+    top:max(14px,env(safe-area-inset-top));
+    width:48px;
+    height:48px;
+    padding:0;
+    border:1px solid rgba(56,92,77,.14);
+    border-radius:15px;
+    background:rgba(255,255,255,.96);
+    color:var(--deep);
+    cursor:pointer;
+    box-shadow:0 10px 30px rgba(38,58,50,.12);
+    z-index:110;
+    -webkit-tap-highlight-color:transparent;
+    transition:transform .2s ease,background .2s ease,box-shadow .2s ease;
+  }
+
+  .portal-mobile-trigger:active{
+    transform:scale(.94);
+  }
+
+  .portal-mobile-trigger.open{
+    background:#fff;
+    box-shadow:0 8px 24px rgba(38,58,50,.10);
+  }
+
+  .portal-brand{
+    min-height:52px;
+    padding:0 4px 20px;
+  }
+
+  .portal-brand .brand{
+    min-height:44px;
+  }
+
+  .portal-close{
+    display:grid !important;
+    place-items:center;
+    width:44px;
+    height:44px;
+    min-width:44px;
+    border-radius:12px;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  .portal-close:active,
+  .portal-logout:active,
+  .portal-nav a:active{
+    transform:scale(.97);
+  }
+
+  .portal-role{
+    padding:16px;
+    margin-bottom:18px;
+    border-radius:18px;
+  }
+
+  .portal-nav{
+    gap:8px;
+  }
+
+  .portal-nav a{
+    min-height:54px;
+    padding:14px 15px;
+    border-radius:15px;
+    font-size:14px;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  .portal-nav a svg{
+    width:20px;
+    height:20px;
+  }
+
+  .portal-account{
+    margin-top:auto;
+    min-height:70px;
+    padding:12px;
+    border-radius:18px;
+  }
+
+  .portal-account-copy b{
+    font-size:13px;
+  }
+
+  .portal-account-copy span{
+    font-size:11px;
+  }
+
+  .portal-logout{
+    width:44px;
+    height:44px;
+    min-width:44px;
+  }
+
+  .portal-content{
+    width:100%;
+    min-width:0;
+    overflow-x:hidden;
+  }
+
+  .member-portal,
+  .admin-portal{
+    width:100%;
+    min-width:0;
+    padding:76px 18px 45px;
+  }
+
+  .portal-topbar{
+    width:100%;
+    margin-left:0;
+    padding-left:58px;
+  }
+
+  .portal-topbar h1{
+    font-size:clamp(38px,12vw,52px);
+    max-width:100%;
+    overflow-wrap:anywhere;
+  }
+
+  .portal-topbar p:not(.eyebrow){
+    font-size:14px;
+  }
+
+  .portal-secure{
+    white-space:normal;
+    line-height:1.35;
+  }
+
+  .admin-portal .admin-stats{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .admin-portal .admin-stats>div:last-child{
+    grid-column:1 / -1;
+  }
+
+  .admin-table-wrap{
+    max-width:100%;
+    -webkit-overflow-scrolling:touch;
+  }
+}
