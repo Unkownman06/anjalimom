@@ -54,13 +54,11 @@ function Reveal({
 function Brand({className=""}:{className?:string}){
   return (
     <span className={`brand-inner ${className}`}>
-      <span className="brand-mark brand-image-mark">
-        <img src="/aarogyam-mark.png" alt="Aarogyam Space Studio logo"/>
-      </span>
-      <span className="brand-copy">
-        AAROGYAM<span className="brand-dot">.</span>
-        <small>Space Studio</small>
-      </span>
+      <img
+        className="brand-full-image"
+        src="/aarogyam-header-logo.png"
+        alt="Aarogyam Space Studio"
+      />
     </span>
   );
 }

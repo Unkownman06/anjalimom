@@ -196,3 +196,13 @@ html{scroll-padding-top:24px}body{overflow-x:hidden}
 /* Aarogyam Space Studio branding */
 .brand-inner{display:flex;align-items:center;gap:9px}.brand-image-mark{overflow:hidden;background:var(--deep)!important;padding:5px}.brand-image-mark img{width:100%;height:100%;object-fit:contain;display:block}.brand-copy{display:flex;align-items:baseline;gap:2px;letter-spacing:.10em}.brand-copy small{display:block;font-size:10px;letter-spacing:.08em;font-weight:500;margin-left:5px;color:var(--muted)}.footer-main .brand-copy small{color:#c6d1ca}.footer-contact{display:flex;flex-direction:column;gap:7px;color:#c6d1ca;font-size:12px}.footer-contact strong{color:#fff;font-size:13px}.instagram-link{display:flex;align-items:center;gap:7px;color:#fff}.course-image-upload{border:1px solid var(--line);padding:15px;background:#f8f8f3;border-radius:14px;margin:12px 0}.upload-label{font-weight:600!important;color:var(--ink)!important;margin:0 0 8px!important}.course-image-upload input[type=file]{margin:5px 0 8px;padding:10px;background:#fff;border:1px dashed #bfc9c0;border-radius:10px}.course-image-preview{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}.course-image-preview img{width:120px;height:85px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}.portal-overlay{display:none}
 @media(max-width:800px){.portal-sidebar{width:min(86vw,360px);transform:translateX(-110%)!important;transition:transform .3s cubic-bezier(.22,1,.36,1)!important;animation:none!important;z-index:100}.portal-sidebar.open{transform:translateX(0)!important}.portal-overlay{display:block;position:fixed;inset:0;border:0;background:rgba(20,32,27,.28);backdrop-filter:blur(3px);z-index:90;cursor:pointer}.portal-mobile-trigger{display:grid;place-items:center;position:fixed;left:15px;top:15px;width:46px;height:46px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.96);color:var(--deep);cursor:pointer;box-shadow:0 8px 25px rgba(38,58,50,.12);z-index:120}.portal-sidebar.open ~ .portal-mobile-trigger{background:var(--deep);color:#fff}.portal-topbar{margin-left:62px}.footer-contact{align-items:flex-start}.brand-copy{letter-spacing:.07em}.brand-copy small{font-size:9px}}
+
+
+/* Exact Aarogyam Space Studio supplied logo — do not apply a colored badge/background. */
+.brand-inner{display:flex;align-items:center;gap:0;height:52px;line-height:0}
+.brand-full-image{display:block;width:172px;height:auto;max-height:52px;object-fit:contain;object-position:left center}
+.brand-image-mark{background:transparent!important;padding:0!important;overflow:visible!important;box-shadow:none!important}
+@media(max-width:800px){
+  .brand-inner{height:48px}
+  .brand-full-image{width:158px;max-height:48px}
+}
