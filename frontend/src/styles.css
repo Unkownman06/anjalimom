@@ -180,49 +180,15 @@ html{scroll-padding-top:24px}body{overflow-x:hidden}
 @media(max-width:800px){.portal-sidebar{width:292px}.portal-content{overflow:hidden}.portal-nav a:hover,.portal-nav a.portal-nav-primary{transform:none}.portal-topbar h1{font-size:46px}.admin-panel,.member-panel{border-radius:17px}}
 @media(prefers-reduced-motion:reduce){.portal-sidebar,.portal-topbar,.member-grid>*,.admin-grid>*,.hero-copy,.detail-copy,.auth-card,.member-portal,.admin-portal{animation:none!important}.portal-nav a,.portal-account,.portal-avatar,.course-card,.admin-panel,.member-panel,.admin-stats>div,.btn{transition:none!important}}
 
+
 /* Admin course management */
-.admin-manage-page{display:flex;flex-direction:column;gap:28px}
-.admin-manage-heading{align-items:center}
-.admin-course-list{display:grid;gap:18px}
-.admin-course-card{background:rgba(255,255,255,.82);border:1px solid rgba(57,91,78,.12);border-radius:22px;padding:20px;box-shadow:0 12px 35px rgba(34,54,47,.06)}
-.admin-course-card-main{display:flex;gap:18px;align-items:flex-start}
-.admin-course-thumb{width:120px;height:92px;object-fit:cover;border-radius:16px;background:#e8eee9;flex:0 0 auto}
-.admin-course-thumb-empty{display:grid;place-items:center;font-size:11px;letter-spacing:.16em;color:#547064}
-.admin-course-copy{flex:1;min-width:0}
-.admin-course-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.admin-course-title-row h2{margin:0;font-size:22px}
-.admin-course-copy p{margin:7px 0 12px;color:#6a756f}
-.admin-course-meta{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:#65716b}
-.admin-course-meta span:first-child{font-weight:700;color:#274c40}
-.course-status,.status-pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;text-transform:capitalize}
-.course-status.published,.status-pill.paid{background:#e3f2e8;color:#236044}
-.course-status.draft{background:#f4ecd6;color:#8a6820}
-.course-status.archived{background:#eee;color:#666}
-.admin-course-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid rgba(57,91,78,.1)}
-.btn.danger{background:#fff0ef;color:#a13e36;border:1px solid #f0cbc7}
-.btn.ghost{background:transparent;color:#365e51;border:1px solid rgba(57,91,78,.18)}
-.course-buyers{margin-top:18px;padding-top:16px;border-top:1px solid rgba(57,91,78,.1)}
-.course-buyers-heading{display:flex;justify-content:space-between;margin-bottom:10px}
-.course-buyers-heading div{display:flex;gap:10px;align-items:center}
-.course-buyers-heading span{font-size:12px;color:#718079}
-.buyer-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(57,91,78,.08)}
-.buyer-row:last-child{border-bottom:0}
-.buyer-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#dcebe2;color:#315d4e;font-weight:700}
-.buyer-row div:nth-child(2){display:flex;flex-direction:column;flex:1}
-.buyer-row small,.purchase-table small{display:block;color:#7a8580;margin-top:2px}
-.buyer-row>span{font-size:12px;color:#65716b}
-.empty-state{text-align:center;padding:40px}
-.section-heading-row{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
-.admin-purchases-panel{margin-top:4px}
-.purchase-table-wrap{overflow-x:auto}
-.purchase-table{width:100%;border-collapse:collapse;margin-top:12px}
-.purchase-table th,.purchase-table td{text-align:left;padding:13px 10px;border-bottom:1px solid rgba(57,91,78,.09);font-size:13px;white-space:nowrap}
-.purchase-table th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#77837d}
-.purchase-table td:first-child{white-space:normal;min-width:190px}
-.admin-modal-backdrop{position:fixed;inset:0;background:rgba(22,35,30,.48);backdrop-filter:blur(7px);display:grid;place-items:center;padding:20px;z-index:1000}
-.admin-modal{width:min(760px,100%);max-height:92vh;overflow:auto;background:#fbfaf5;border-radius:24px;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.22)}
-.admin-modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
-.admin-modal-header h2{margin:2px 0 0}
-.icon-button{width:38px;height:38px;border:1px solid rgba(57,91,78,.15);border-radius:50%;background:white;display:grid;place-items:center;cursor:pointer;color:#35594c}
-.modal-actions{display:flex;justify-content:flex-end;gap:10px;padding-top:8px}
-@media(max-width:760px){.admin-course-card-main{flex-direction:column}.admin-course-thumb{width:100%;height:160px}.admin-manage-heading{align-items:flex-start}.section-heading-row{flex-direction:column}.purchase-table th,.purchase-table td{padding:10px 7px}.buyer-row{align-items:flex-start;flex-wrap:wrap}.buyer-row>span{width:100%;margin-left:48px}}
+.admin-panel-heading{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
+.admin-row-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn.danger{border-color:#d8a4a4;color:#8f3030}
+.admin-panel-wide{grid-column:1 / -1}
+.admin-table-wrap{overflow-x:auto;margin-top:18px}
+.admin-table{width:100%;border-collapse:collapse;min-width:900px}
+.admin-table th,.admin-table td{text-align:left;padding:13px 12px;border-bottom:1px solid rgba(42,72,61,.12);vertical-align:top}
+.admin-table th{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.admin-table td{font-size:.92rem}
+@media (max-width:800px){.admin-panel-heading{flex-direction:column}.admin-row-actions{margin-top:8px}.admin-panel-wide{grid-column:auto}}

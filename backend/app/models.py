@@ -77,6 +77,7 @@ class Order(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"), index=True)
+    phone_number: Mapped[str] = mapped_column(String(20), default="")
     original_amount: Mapped[Decimal] = mapped_column(Numeric(10,2))
     discount_amount: Mapped[Decimal] = mapped_column(Numeric(10,2), default=0)
     final_amount: Mapped[Decimal] = mapped_column(Numeric(10,2))

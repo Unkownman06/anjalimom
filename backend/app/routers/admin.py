@@ -1,13 +1,24 @@
-from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+
 from ..auth import admin_user
 from ..db import get_db
-from ..models import User, Course, CourseService, CourseBenefit, CurriculumItem, Discount, Order, Enrollment, CourseProgress, Review
+from ..models import (
+    User,
+    Course,
+    CourseService,
+    CourseBenefit,
+    CurriculumItem,
+    Discount,
+    Order,
+    Enrollment,
+    Review,
+)
 from ..schemas import CourseIn, DiscountIn
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
 
 def course_out(c):
     return {
@@ -25,161 +36,225 @@ def course_out(c):
         "original_price": float(c.original_price),
         "selling_price": float(c.selling_price),
         "status": c.status,
-        "whatsapp_enabled": c.whatsapp_enabled,
         "whatsapp_invite_link": c.whatsapp_invite_link,
+        "whatsapp_enabled": c.whatsapp_enabled,
         "whatsapp_configured": bool(c.whatsapp_invite_link),
-        "services": [{"name": x.name, "description": x.description} for x in c.services],
+        "services": [
+            {"name": x.name, "description": x.description}
+            for x in c.services
+        ],
         "benefits": [x.text for x in c.benefits],
-        "curriculum": [{"title": x.title, "duration": x.duration, "position": x.position} for x in c.curriculum],
+        "curriculum": [
+            {
+                "title": x.title,
+                "duration": x.duration,
+                "position": x.position,
+            }
+            for x in sorted(c.curriculum, key=lambda item: item.position)
+        ],
     }
+
 
 @router.get("/summary")
-def summary(admin=Depends(admin_user), db: Session=Depends(get_db)):
-    total_revenue = sum(float(x.final_amount) for x in db.query(Order).filter(Order.status=="paid").all())
+def summary(admin=Depends(admin_user), db: Session = Depends(get_db)):
+    total_revenue = sum(
+        float(x.final_amount)
+        for x in db.query(Order).filter(Order.status == "paid").all()
+    )
     return {
-        "members": db.query(User).filter(User.role=="member").count(),
+        "members": db.query(User).filter(User.role == "member").count(),
         "courses": db.query(Course).count(),
-        "purchases": db.query(Order).filter(Order.status=="paid").count(),
+        "purchases": db.query(Order).filter(Order.status == "paid").count(),
         "revenue": total_revenue,
-        "subscriptions": db.query(Enrollment).filter(Enrollment.status=="active").count(),
-        "reviews": db.query(Review).filter(Review.status=="approved").count(),
-        "average_rating": float(db.query(func.avg(Review.rating)).filter(Review.status=="approved").scalar() or 0),
+        "subscriptions": db.query(Enrollment).filter(Enrollment.status == "active").count(),
+        "reviews": db.query(Review).filter(Review.status == "approved").count(),
+        "average_rating": float(
+            db.query(func.avg(Review.rating))
+            .filter(Review.status == "approved")
+            .scalar()
+            or 0
+        ),
     }
 
+
 @router.get("/courses")
-def courses(admin=Depends(admin_user), db: Session=Depends(get_db)):
-    return [course_out(c) for c in db.query(Course).order_by(Course.created_at.desc()).all()]
+def courses(admin=Depends(admin_user), db: Session = Depends(get_db)):
+    return [
+        course_out(c)
+        for c in db.query(Course).order_by(Course.created_at.desc()).all()
+    ]
+
+
+@router.get("/courses/{course_id}")
+def get_course(course_id: int, admin=Depends(admin_user), db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(404, "Course not found")
+    return course_out(course)
+
 
 @router.post("/courses")
-def create_course(payload: CourseIn, admin=Depends(admin_user), db: Session=Depends(get_db)):
-    if db.query(Course).filter(Course.slug==payload.slug).first(): raise HTTPException(409, "Slug already exists")
-    c = Course(**payload.model_dump(exclude={"services","benefits","curriculum"}))
-    db.add(c); db.flush()
-    for x in payload.services: db.add(CourseService(course_id=c.id, **x.model_dump()))
-    for x in payload.benefits: db.add(CourseBenefit(course_id=c.id, text=x))
-    for x in payload.curriculum: db.add(CurriculumItem(course_id=c.id, **x.model_dump()))
-    db.commit(); db.refresh(c)
-    return course_out(c)
+def create_course(payload: CourseIn, admin=Depends(admin_user), db: Session = Depends(get_db)):
+    if db.query(Course).filter(Course.slug == payload.slug).first():
+        raise HTTPException(409, "Slug already exists")
+
+    data = payload.model_dump(exclude={"services", "benefits", "curriculum"})
+    course = Course(**data)
+    db.add(course)
+    db.flush()
+
+    for item in payload.services:
+        db.add(CourseService(course_id=course.id, **item.model_dump()))
+    for item in payload.benefits:
+        db.add(CourseBenefit(course_id=course.id, text=item))
+    for item in payload.curriculum:
+        db.add(CurriculumItem(course_id=course.id, **item.model_dump()))
+
+    db.commit()
+    db.refresh(course)
+    return course_out(course)
+
 
 @router.put("/courses/{course_id}")
-def update_course(course_id: int, payload: CourseIn, admin=Depends(admin_user), db: Session=Depends(get_db)):
-    c = db.query(Course).filter(Course.id==course_id).first()
-    if not c: raise HTTPException(404, "Course not found")
-    for k,v in payload.model_dump(exclude={"services","benefits","curriculum"}).items(): setattr(c,k,v)
-    c.services.clear(); c.benefits.clear(); c.curriculum.clear()
-    for x in payload.services: c.services.append(CourseService(**x.model_dump()))
-    for x in payload.benefits: c.benefits.append(CourseBenefit(text=x))
-    for x in payload.curriculum: c.curriculum.append(CurriculumItem(**x.model_dump()))
-    db.commit(); db.refresh(c); return course_out(c)
+def update_course(course_id: int, payload: CourseIn, admin=Depends(admin_user), db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(404, "Course not found")
+
+    slug_owner = (
+        db.query(Course)
+        .filter(Course.slug == payload.slug, Course.id != course_id)
+        .first()
+    )
+    if slug_owner:
+        raise HTTPException(409, "Another course already uses this slug")
+
+    data = payload.model_dump(exclude={"services", "benefits", "curriculum"})
+    for key, value in data.items():
+        setattr(course, key, value)
+
+    # Replace the editable child collections. delete-orphan is configured
+    # on these relationships, so removed rows are deleted from the database.
+    course.services.clear()
+    course.benefits.clear()
+    course.curriculum.clear()
+
+    for item in payload.services:
+        course.services.append(CourseService(**item.model_dump()))
+    for item in payload.benefits:
+        course.benefits.append(CourseBenefit(text=item))
+    for item in payload.curriculum:
+        course.curriculum.append(CurriculumItem(**item.model_dump()))
+
+    db.commit()
+    db.refresh(course)
+    return course_out(course)
+
 
 @router.delete("/courses/{course_id}")
-def delete_course(course_id: int, admin=Depends(admin_user), db: Session=Depends(get_db)):
-    c = db.query(Course).filter(Course.id == course_id).first()
-    if not c:
+def delete_course(course_id: int, admin=Depends(admin_user), db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
         raise HTTPException(404, "Course not found")
 
-    purchase_count = db.query(Order).filter(
-        Order.course_id == course_id,
-        Order.status == "paid",
-    ).count()
-
-    # Keep purchase history intact. Once a course has paid orders, it cannot
-    # be physically deleted because orders reference the course. Archive it
-    # instead so it disappears from the public catalogue but remains visible
-    # in admin purchase history.
+    purchase_count = db.query(Order).filter(Order.course_id == course_id).count()
     if purchase_count:
-        c.status = "archived"
-        db.commit()
-        return {
-            "message": "Course archived because it has completed purchases",
-            "deleted": False,
-            "archived": True,
-        }
+        raise HTTPException(
+            409,
+            "This course has purchase records. Change its status to Draft instead of deleting it."
+        )
 
-    # No paid purchases: clean up dependent records before deleting.
-    db.query(Review).filter(Review.course_id == course_id).delete(synchronize_session=False)
-    db.query(CourseProgress).filter(CourseProgress.course_id == course_id).delete(synchronize_session=False)
-    db.query(Enrollment).filter(Enrollment.course_id == course_id).delete(synchronize_session=False)
-    db.query(Order).filter(Order.course_id == course_id).delete(synchronize_session=False)
-    db.delete(c)
+    db.delete(course)
     db.commit()
-    return {"message": "Course deleted", "deleted": True, "archived": False}
+    return {"message": "Course deleted successfully"}
+
 
 @router.post("/courses/{course_id}/discount")
-def add_discount(course_id:int, payload:DiscountIn, admin=Depends(admin_user), db:Session=Depends(get_db)):
-    if not db.query(Course).filter(Course.id==course_id).first(): raise HTTPException(404,"Course not found")
-    d=Discount(course_id=course_id, **payload.model_dump())
-    db.add(d); db.commit(); return {"message":"Discount added","id":d.id}
-
-@router.get("/orders")
-def orders(admin=Depends(admin_user), db:Session=Depends(get_db)):
-    rows = (
-        db.query(Order, User, Course)
-        .join(User, User.id == Order.user_id)
-        .outerjoin(Course, Course.id == Order.course_id)
-        .order_by(Order.created_at.desc())
-        .limit(100)
-        .all()
-    )
-    return [
-        {
-            "id": o.id,
-            "user_id": o.user_id,
-            "member_name": u.name or "Member",
-            "member_email": u.email,
-            "course_id": o.course_id,
-            "course_title": c.title if c else "Deleted course",
-            "amount": float(o.final_amount),
-            "original_amount": float(o.original_amount),
-            "discount": float(o.discount_amount),
-            "status": o.status,
-            "order_id": o.razorpay_order_id,
-            "payment_id": o.razorpay_payment_id,
-            "date": o.created_at,
-        }
-        for o, u, c in rows
-    ]
-
-@router.get("/courses/{course_id}/buyers")
-def course_buyers(course_id: int, admin=Depends(admin_user), db: Session = Depends(get_db)):
+def add_discount(course_id: int, payload: DiscountIn, admin=Depends(admin_user), db: Session = Depends(get_db)):
     if not db.query(Course).filter(Course.id == course_id).first():
         raise HTTPException(404, "Course not found")
+    discount = Discount(course_id=course_id, **payload.model_dump())
+    db.add(discount)
+    db.commit()
+    db.refresh(discount)
+    return {"message": "Discount added", "id": discount.id}
 
-    rows = (
-        db.query(Order, User)
-        .join(User, User.id == Order.user_id)
-        .filter(Order.course_id == course_id, Order.status == "paid")
-        .order_by(Order.created_at.desc())
-        .all()
-    )
-    return [
-        {
-            "user_id": u.id,
-            "name": u.name or "Member",
-            "email": u.email,
-            "amount": float(o.final_amount),
-            "status": o.status,
-            "payment_id": o.razorpay_payment_id,
-            "date": o.created_at,
-        }
-        for o, u in rows
-    ]
+
+@router.get("/orders")
+def orders(admin=Depends(admin_user), db: Session = Depends(get_db)):
+    rows = db.query(Order).order_by(Order.created_at.desc()).limit(200).all()
+    result = []
+
+    for order in rows:
+        user = db.query(User).filter(User.id == order.user_id).first()
+        course = db.query(Course).filter(Course.id == order.course_id).first()
+        result.append({
+            "id": order.id,
+            "user_id": order.user_id,
+            "course_id": order.course_id,
+            "buyer_name": user.name if user else "Unknown",
+            "buyer_email": user.email if user else "",
+            "phone_number": order.phone_number or "",
+            "course_name": course.title if course else "Unknown course",
+            "amount": float(order.final_amount),
+            "discount": float(order.discount_amount),
+            "status": order.status,
+            "order_id": order.razorpay_order_id,
+            "payment_id": order.razorpay_payment_id,
+            "date": order.created_at,
+        })
+
+    return result
+
 
 @router.get("/users")
-def users(admin=Depends(admin_user), db:Session=Depends(get_db)):
-    rows=db.query(User).order_by(User.created_at.desc()).all()
-    return [{"id":u.id,"name":u.name,"email":u.email,"role":u.role,"disabled":u.disabled,"created_at":u.created_at} for u in rows]
+def users(admin=Depends(admin_user), db: Session = Depends(get_db)):
+    rows = db.query(User).order_by(User.created_at.desc()).all()
+    return [
+        {
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "disabled": u.disabled,
+            "created_at": u.created_at,
+        }
+        for u in rows
+    ]
+
 
 @router.get("/reviews")
-def reviews(admin=Depends(admin_user), db:Session=Depends(get_db)):
-    rows=db.query(Review).order_by(Review.created_at.desc()).all()
-    return [{"id":r.id,"course_id":r.course_id,"user_id":r.user_id,"rating":r.rating,"comment":r.comment,"status":r.status,"featured":r.featured,"verified_purchase":r.verified_purchase,"created_at":r.created_at} for r in rows]
+def reviews(admin=Depends(admin_user), db: Session = Depends(get_db)):
+    rows = db.query(Review).order_by(Review.created_at.desc()).all()
+    return [
+        {
+            "id": r.id,
+            "course_id": r.course_id,
+            "user_id": r.user_id,
+            "rating": r.rating,
+            "comment": r.comment,
+            "status": r.status,
+            "featured": r.featured,
+            "verified_purchase": r.verified_purchase,
+            "created_at": r.created_at,
+        }
+        for r in rows
+    ]
+
 
 @router.patch("/reviews/{review_id}")
-def moderate_review(review_id:int, payload:dict, admin=Depends(admin_user), db:Session=Depends(get_db)):
-    r=db.query(Review).filter(Review.id==review_id).first()
-    if not r: raise HTTPException(404,"Review not found")
-    if "status" in payload and payload["status"] not in {"pending","approved","hidden"}: raise HTTPException(400,"Invalid review status")
-    if "status" in payload: r.status=payload["status"]
-    if "featured" in payload: r.featured=bool(payload["featured"])
-    db.commit(); return {"message":"Review updated"}
+def moderate_review(review_id: int, payload: dict, admin=Depends(admin_user), db: Session = Depends(get_db)):
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(404, "Review not found")
+
+    if "status" in payload and payload["status"] not in {"pending", "approved", "hidden"}:
+        raise HTTPException(400, "Invalid review status")
+
+    if "status" in payload:
+        review.status = payload["status"]
+    if "featured" in payload:
+        review.featured = bool(payload["featured"])
+
+    db.commit()
+    return {"message": "Review updated"}
