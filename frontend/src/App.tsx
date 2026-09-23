@@ -51,6 +51,20 @@ function Reveal({
   return <div className={`reveal ${className}`}>{children}</div>;
 }
 
+function Brand({className=""}:{className?:string}){
+  return (
+    <span className={`brand-inner ${className}`}>
+      <span className="brand-mark brand-image-mark">
+        <img src="/aarogyam-mark.png" alt="Aarogyam Space Studio logo"/>
+      </span>
+      <span className="brand-copy">
+        AAROGYAM<span className="brand-dot">.</span>
+        <small>Space Studio</small>
+      </span>
+    </span>
+  );
+}
+
 function Nav(){
   const {user,logout}=useAuth();
   const [open,setOpen]=useState(false);
@@ -58,12 +72,7 @@ function Nav(){
   return (
     <header className="nav">
       <Link to="/" className="brand">
-        <span className="brand-mark">
-          <Zap size={17}/>
-        </span>
-        <span>
-          ANANDA<span className="brand-dot">.</span>
-        </span>
+        <Brand/>
       </Link>
 
       <nav className={open?"nav-links open":"nav-links"}>
@@ -183,7 +192,7 @@ function Home(){
 
           <Reveal>
             <p className="lead">
-              Ananda combines guided movement, meditation and practical
+              Aarogyam Space Studio combines guided movement, meditation and practical
               consistency into beautiful programs you can follow at your
               own pace.
             </p>
@@ -284,7 +293,7 @@ function Home(){
         <section className="quote-section">
           <div>
             <p className="eyebrow">
-              THE ANANDA APPROACH
+              THE AAROGYAM APPROACH
             </p>
 
             <h2>
@@ -403,13 +412,7 @@ function Footer(){
             to="/"
             className="brand"
           >
-            <span className="brand-mark">
-              <Zap size={17}/>
-            </span>
-
-            <span>
-              ANANDA<span className="brand-dot">.</span>
-            </span>
+            <Brand/>
           </Link>
 
           <p>
@@ -422,16 +425,26 @@ function Footer(){
           <a href="/#services">Services</a>
           <a href="#">Privacy</a>
           <a href="#">Terms</a>
-          <a href="#">Refund policy</a>
         </div>
 
-        <div className="social">
-          <Instagram size={18}/>
+        <div className="footer-contact">
+          <strong>Contact</strong>
+          <a href="tel:998761459">Khushi Khandar</a>
+          <a href="tel:998761459">998761459</a>
+          <a
+            href="https://www.instagram.com/aarogyam_space_studio/"
+            target="_blank"
+            rel="noreferrer"
+            className="instagram-link"
+          >
+            <Instagram size={17}/>
+            @aarogyam_space_studio
+          </a>
         </div>
       </div>
 
       <div className="footer-bottom">
-        © 2026 Ananda Yoga. All rights reserved.
+        © 2026 Aarogyam Space Studio. All rights reserved.
       </div>
     </footer>
   );
@@ -919,8 +932,8 @@ function Login(){
             <span className="auth-caption-dot"></span>
 
             {isAdmin
-              ? "Ananda · Administration"
-              : "Ananda · Your practice"}
+              ? "Aarogyam Space Studio · Administration"
+              : "Aarogyam Space Studio · Your practice"}
           </div>
         </div>
 
@@ -948,7 +961,7 @@ function Login(){
             <div className="auth-description">
               <p key={`${mode}-${register}`}>
                 {isAdmin
-                  ? "Manage courses, members, orders and your Ananda experience."
+                  ? "Manage courses, members, orders and your Aarogyam Space Studio experience."
                   : "Access your courses, progress and private communities."}
               </p>
             </div>
@@ -1110,17 +1123,15 @@ function Login(){
 function Sidebar({
   role,
   name,
-  email,
-  open,
-  onClose
+  email
 }:{
   role:"member"|"admin";
   name:string;
   email:string;
-  open:boolean;
-  onClose:()=>void;
 }){
   const {logout}=useAuth();
+
+  const [open,setOpen]=useState(false);
 
   const displayName=
     name ||
@@ -1129,128 +1140,138 @@ function Sidebar({
 
   const isAdmin=role==="admin";
 
-  const closeAfterNavigate=()=>onClose();
+  useEffect(()=>{
+    if(!open) return;
+    const onKey=(e:KeyboardEvent)=>{ if(e.key==="Escape") setOpen(false); };
+    document.addEventListener("keydown",onKey);
+    const previous=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    return ()=>{
+      document.removeEventListener("keydown",onKey);
+      document.body.style.overflow=previous;
+    };
+  },[open]);
 
   return (
     <>
+      <aside
+        className={`portal-sidebar ${
+          open ? "open" : ""
+        }`}
+      >
+      <div className="portal-brand">
+        <Link
+          to="/"
+          className="brand"
+        >
+          <Brand/>
+        </Link>
+
+        <button
+          className="portal-close"
+          onClick={()=>setOpen(false)}
+        >
+          <X size={19}/>
+        </button>
+      </div>
+
+      <div className="portal-role">
+        <span className="portal-role-dot"></span>
+
+        <div>
+          <b>
+            {isAdmin
+              ? "Admin workspace"
+              : "Member workspace"}
+          </b>
+
+          <small>
+            {isAdmin
+              ? "Private administration"
+              : "Your personal space"}
+          </small>
+        </div>
+      </div>
+
+      <nav className="portal-nav">
+        <Link
+          to={isAdmin?"/admin":"/dashboard"}
+          className="portal-nav-primary"
+        >
+          <LayoutDashboard size={17}/>
+          <span>{isAdmin ? "Overview" : "My space"}</span>
+        </Link>
+
+        {!isAdmin&&(
+          <Link to="/#courses">
+            <ShoppingBag size={17}/>
+            <span>Courses</span>
+          </Link>
+        )}
+
+        {isAdmin&&(
+          <Link to="/admin#courses">
+            <ShoppingBag size={17}/>
+            <span>Manage courses</span>
+          </Link>
+        )}
+
+        {isAdmin&&(
+          <Link to="/admin#orders">
+            <ShoppingBag size={17}/>
+            <span>Orders</span>
+          </Link>
+        )}
+      </nav>
+
+      <div className="portal-account">
+        <div className="portal-avatar">
+          {displayName
+            .charAt(0)
+            .toUpperCase()}
+        </div>
+
+        <div className="portal-account-copy">
+          <b>
+            {displayName}
+          </b>
+
+          <span>
+            {isAdmin
+              ? "Administrator"
+              : "Member"}
+          </span>
+        </div>
+
+        <button
+          className="portal-logout"
+          title="Log out"
+          onClick={async()=>{
+            await logout();
+            window.location.assign("/login");
+          }}
+        >
+          <LogOut size={17}/>
+        </button>
+      </div>
+
+      </aside>
+      {open && (
+        <button
+          type="button"
+          className="portal-overlay"
+          aria-label="Close menu"
+          onClick={()=>setOpen(false)}
+        />
+      )}
       <button
         type="button"
-        className={`portal-overlay ${open ? "visible" : ""}`}
-        aria-label="Close navigation menu"
-        aria-hidden={!open}
-        onClick={onClose}
-      />
-
-      <aside
-        className={`portal-sidebar ${open ? "open" : ""}`}
-        aria-hidden={!open && typeof window !== "undefined" && window.innerWidth <= 800}
+        className="portal-mobile-trigger"
+        aria-label={open ? "Close menu" : "Open menu"}
+        onClick={()=>setOpen(!open)}
       >
-        <div className="portal-brand">
-          <Link
-            to="/"
-            className="brand"
-            onClick={closeAfterNavigate}
-          >
-            <span className="brand-mark">
-              <Zap size={17}/>
-            </span>
-
-            <span>
-              ANANDA<span className="brand-dot">.</span>
-            </span>
-          </Link>
-
-          <button
-            type="button"
-            className="portal-close"
-            aria-label="Close navigation menu"
-            onClick={onClose}
-          >
-            <X size={21}/>
-          </button>
-        </div>
-
-        <div className="portal-role">
-          <span className="portal-role-dot"></span>
-
-          <div>
-            <b>
-              {isAdmin
-                ? "Admin workspace"
-                : "Member workspace"}
-            </b>
-
-            <small>
-              {isAdmin
-                ? "Private administration"
-                : "Your personal space"}
-            </small>
-          </div>
-        </div>
-
-        <nav className="portal-nav">
-          <Link
-            to={isAdmin?"/admin":"/dashboard"}
-            className="portal-nav-primary"
-            onClick={closeAfterNavigate}
-          >
-            <LayoutDashboard size={17}/>
-            <span>{isAdmin ? "Overview" : "My space"}</span>
-          </Link>
-
-          {!isAdmin&&(
-            <Link to="/#courses" onClick={closeAfterNavigate}>
-              <ShoppingBag size={17}/>
-              <span>Courses</span>
-            </Link>
-          )}
-
-          {isAdmin&&(
-            <Link to="/admin#courses" onClick={closeAfterNavigate}>
-              <ShoppingBag size={17}/>
-              <span>Manage courses</span>
-            </Link>
-          )}
-
-          {isAdmin&&(
-            <Link to="/admin#orders" onClick={closeAfterNavigate}>
-              <ShoppingBag size={17}/>
-              <span>Orders</span>
-            </Link>
-          )}
-        </nav>
-
-        <div className="portal-account">
-          <div className="portal-avatar">
-            {displayName
-              .charAt(0)
-              .toUpperCase()}
-          </div>
-
-          <div className="portal-account-copy">
-            <b>
-              {displayName}
-            </b>
-
-            <span>
-              {isAdmin
-                ? "Administrator"
-                : "Member"}
-            </span>
-          </div>
-
-          <button
-            className="portal-logout"
-            title="Log out"
-            onClick={async()=>{
-              await logout();
-              window.location.assign("/login");
-            }}
-          >
-            <LogOut size={17}/>
-          </button>
-        </div>
-      </aside>
+        {open ? <X size={20}/> : <Menu size={20}/>}
+      </button>
     </>
   );
 }
@@ -1266,26 +1287,6 @@ function PortalLayout({
   email:string;
   children:any;
 }){
-  const [menuOpen,setMenuOpen]=useState(false);
-
-  useEffect(()=>{
-    if(!menuOpen) return;
-
-    const previousOverflow=document.body.style.overflow;
-    document.body.style.overflow="hidden";
-
-    const onKeyDown=(event:KeyboardEvent)=>{
-      if(event.key==="Escape") setMenuOpen(false);
-    };
-
-    window.addEventListener("keydown",onKeyDown);
-
-    return ()=>{
-      document.body.style.overflow=previousOverflow;
-      window.removeEventListener("keydown",onKeyDown);
-    };
-  },[menuOpen]);
-
   return (
     <div
       className={`portal-layout ${
@@ -1298,19 +1299,7 @@ function PortalLayout({
         role={role}
         name={name}
         email={email}
-        open={menuOpen}
-        onClose={()=>setMenuOpen(false)}
       />
-
-      <button
-        type="button"
-        className={`portal-mobile-trigger ${menuOpen ? "open" : ""}`}
-        aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
-        aria-expanded={menuOpen}
-        onClick={()=>setMenuOpen(value=>!value)}
-      >
-        {menuOpen ? <X size={21}/> : <Menu size={21}/>} 
-      </button>
 
       <main className="portal-content">
         {children}
@@ -1703,7 +1692,7 @@ function Checkout(){
         key:order.key_id,
         amount:order.amount,
         currency:order.currency,
-        name:"Ananda Yoga",
+        name:"Aarogyam Space Studio",
         description:course?.title,
         order_id:order.order_id,
         prefill:{
@@ -1907,6 +1896,45 @@ function Admin(){
     setForm({...emptyForm});
   }
 
+  async function handleCourseImage(e:any){
+    const file=e.target.files?.[0];
+    if(!file) return;
+    if(!file.type.startsWith("image/")){
+      alert("Please select an image file.");
+      e.target.value="";
+      return;
+    }
+    if(file.size>8*1024*1024){
+      alert("Please choose an image smaller than 8 MB.");
+      e.target.value="";
+      return;
+    }
+
+    const dataUrl=await new Promise<string>((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result));
+      reader.onerror=reject;
+      reader.readAsDataURL(file);
+    });
+
+    const img=new Image();
+    img.onload=()=>{
+      const max=1400;
+      const scale=Math.min(1,max/Math.max(img.width,img.height));
+      const canvas=document.createElement("canvas");
+      canvas.width=Math.max(1,Math.round(img.width*scale));
+      canvas.height=Math.max(1,Math.round(img.height*scale));
+      const ctx=canvas.getContext("2d");
+      if(!ctx){
+        setForm({...form,image:dataUrl});
+        return;
+      }
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      setForm({...form,image:canvas.toDataURL("image/jpeg",0.82)});
+    };
+    img.src=dataUrl;
+  }
+
   async function saveCourse(e:any){
     e.preventDefault();
 
@@ -2013,7 +2041,21 @@ function Admin(){
             <form onSubmit={saveCourse} className="admin-form">
               <input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Course name" required/>
               <input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} placeholder="Slug" required/>
-              <input value={form.image} onChange={e=>setForm({...form,image:e.target.value})} placeholder="Course image URL"/>
+              <div className="course-image-upload">
+                <label className="upload-label">Course photo</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCourseImage}
+                />
+                <small className="muted">Choose a course photo from your phone or computer. The image is resized automatically.</small>
+                {form.image && (
+                  <div className="course-image-preview">
+                    <img src={form.image} alt="Course preview"/>
+                    <button type="button" className="btn ghost danger" onClick={()=>setForm({...form,image:""})}>Remove photo</button>
+                  </div>
+                )}
+              </div>
               <input value={form.short_description} onChange={e=>setForm({...form,short_description:e.target.value})} placeholder="Short description"/>
               <textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Full course description" rows={5}/>
 

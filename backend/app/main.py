@@ -8,7 +8,7 @@ from .seed import seed
 from .routers import courses, users, payments, admin
 from sqlalchemy import text
 
-app = FastAPI(title="Ananda Yoga API", version="1.0.0")
+app = FastAPI(title="Aarogyam Space Studio API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in settings.cors_origins.split(",")], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
@@ -22,6 +22,9 @@ def ensure_schema_updates():
         if engine.dialect.name == "postgresql":
             connection.execute(text(
                 "ALTER TABLE orders ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20) DEFAULT ''"
+            ))
+            connection.execute(text(
+                "ALTER TABLE courses ALTER COLUMN image TYPE TEXT USING image::text"
             ))
         elif engine.dialect.name == "sqlite":
             columns = connection.execute(text("PRAGMA table_info(orders)")).fetchall()
@@ -42,4 +45,4 @@ app.include_router(admin.router)
 
 @app.get("/health")
 def health():
-    return {"ok": True, "service": "ananda-yoga-api"}
+    return {"ok": True, "service": "aarogyam-space-studio-api"}
