@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .db import Base, engine, SessionLocal
 from .seed import seed
-from .routers import courses, users, payments, admin
+from .routers import courses, users, payments, admin, contact
 from sqlalchemy import text
 
 app = FastAPI(title="Aarogyam Space Studio API", version="1.0.0")
@@ -42,6 +42,7 @@ app.include_router(courses.router)
 app.include_router(users.router)
 app.include_router(payments.router)
 app.include_router(admin.router)
+app.include_router(contact.router)
 
 @app.get("/health")
 def health():

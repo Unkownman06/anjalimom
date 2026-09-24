@@ -1,5 +1,5 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { initializeApp, type FirebaseApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence, type Auth } from "firebase/auth";
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY?.trim(),
@@ -10,12 +10,24 @@ const config = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID?.trim(),
 };
 
-export const firebaseConfigured = Boolean(config.apiKey && config.authDomain && config.projectId && config.appId);
-if (!firebaseConfigured) console.error("Firebase is not configured correctly. Check frontend/.env");
+export const firebaseConfigured = Boolean(
+  config.apiKey && config.authDomain && config.projectId && config.appId
+);
 
-export const firebaseApp = initializeApp(config);
-export const auth = getAuth(firebaseApp);
-setPersistence(auth, browserLocalPersistence).catch((error) => console.error("Firebase persistence setup failed:", error));
+let firebaseApp: FirebaseApp | null = null;
+let auth: Auth | null = null;
+
+if (firebaseConfigured) {
+  firebaseApp = initializeApp(config);
+  auth = getAuth(firebaseApp);
+  setPersistence(auth, browserLocalPersistence).catch((error) =>
+    console.error("Firebase persistence setup failed:", error)
+  );
+} else {
+  console.warn("Firebase is not configured. Add the VITE_FIREBASE_* variables in Vercel to enable login.");
+}
+
+export { firebaseApp, auth };
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
